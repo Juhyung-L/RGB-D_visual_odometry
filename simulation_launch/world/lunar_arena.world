@@ -1,0 +1,27 @@
+<sdf version="1.7">
+  <world name="default">
+    <include>
+        <uri>model://sun</uri>
+    </include>
+
+    <include>
+        <name>lunar_arena</name>
+        <uri>model://lunar_arena</uri>
+        <pose>0 0 0 0 0 3.1416</pose>
+    </include>
+
+    <include>
+        <name>apriltag</name>
+        <uri>model://Apriltag36_11_00000</uri>
+        <pose>-2.9 0 1.0 0 1.57079 0</pose>
+    </include>
+
+    <gui fullscreen="0">
+        <camera name="user_camera">
+            <pose frame="">9.0 -12.0 6.0 0.0 0.3 2.2</pose>
+            <view_controller>orbit</view_controller>
+            <projection_type>perspective</projection_type>
+        </camera>
+    </gui>
+  </world>
+</sdf>
