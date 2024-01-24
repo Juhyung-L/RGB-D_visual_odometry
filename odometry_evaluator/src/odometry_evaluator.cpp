@@ -182,10 +182,15 @@ private:
         ret.transform.rotation.z = q1.getZ();
         ret.transform.rotation.w = q1.getW();
 
+        // need to rotate p2 first then get the translation
+        // beccause the offset is applied using tf2::doTransform(), which applies rotation first then translation
+        geometry_msgs::msg::Pose rotated_p2;
+        tf2::doTransform<geometry_msgs::msg::Pose>(p2, rotated_p2, ret);
+
         // get relative translation
-        ret.transform.translation.x = p1.position.x - p2.position.x;
-        ret.transform.translation.y = p1.position.y - p2.position.y;
-        ret.transform.translation.z = p1.position.z - p2.position.z;
+        ret.transform.translation.x = p1.position.x - rotated_p2.position.x;
+        ret.transform.translation.y = p1.position.y - rotated_p2.position.y;
+        ret.transform.translation.z = p1.position.z - rotated_p2.position.z;
 
         return ret;
     }
