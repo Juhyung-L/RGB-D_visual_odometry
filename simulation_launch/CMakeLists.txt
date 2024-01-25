@@ -28,6 +28,7 @@ INSTALL(DIRECTORY
   urdf
   world
   models
+  config
   DESTINATION share/${PROJECT_NAME}
 )
 

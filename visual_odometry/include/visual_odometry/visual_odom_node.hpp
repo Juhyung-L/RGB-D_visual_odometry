@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <limits>
+#include <string>
 
 #include <opencv2/highgui.hpp>
 
@@ -33,13 +34,62 @@ namespace visual_odometry
 class VisualOdometryNode : public rclcpp::Node
 {
 public:
-    VisualOdometryNode() : Node("visual_odometry_node")
+    VisualOdometryNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions())
+    : Node("visual_odometry_node", options)
+    , static_tf_initialized(false)
+    , map_frame("map")
+    , robot_frame("base_link")
+    , camera_frame("depth_camera_optical_link")
+    , img_topic("depth_camera/image_raw")
+    , pc_topic("depth_camera/points")
+    , fx(168.6042205484022)
+    , fy(168.6042205484022)
+    , cx(160.5)
+    , cy(160.5)
+    , img_width(320)
+    , img_height(320)
+    , max_distance(10.0)
+    , visualize(true)
     {
-        voc_ = VisualOdometryCore(168.6042205484022, 168.6042205484022, 160.5, 160.5, 320, 320);
+        // declare parameters
+        this->declare_parameter("map_frame", map_frame);
+        this->declare_parameter("robot_frame", robot_frame);
+        this->declare_parameter("camera_frame", camera_frame);
+        this->declare_parameter("img_topic", img_topic);
+        this->declare_parameter("pc_topic", pc_topic);
+        this->declare_parameter("fx", fx);
+        this->declare_parameter("fy", fy);
+        this->declare_parameter("cx", cx);
+        this->declare_parameter("cy", cy);
+        this->declare_parameter("img_width", img_width);
+        this->declare_parameter("img_height", img_height);
+        this->declare_parameter("max_distance", max_distance);
+        this->declare_parameter("visualize", visualize);
+
+        // get parameters
+        map_frame = this->get_parameter("map_frame").as_string();
+        robot_frame = this->get_parameter("robot_frame").as_string();
+        camera_frame = this->get_parameter("camera_frame").as_string();
+        img_topic = this->get_parameter("img_topic").as_string();
+        pc_topic = this->get_parameter("pc_topic").as_string();
+        fx = this->get_parameter("fx").as_double();
+        fy = this->get_parameter("fy").as_double();
+        cx = this->get_parameter("cx").as_double();
+        cy = this->get_parameter("cy").as_double();
+        img_width = this->get_parameter("img_width").as_int();
+        img_height = this->get_parameter("img_height").as_int();
+        max_distance = this->get_parameter("max_distance").as_double();
+        visualize = this->get_parameter("visualize").as_bool();
+
+        max_distance_sqr = max_distance * max_distance;
+        map_to_base_link.header.frame_id = map_frame;
+        map_to_base_link.child_frame_id = robot_frame;
+
+        voc_ = VisualOdometryCore(fx, fy, cx, cy, img_width, img_height);
         
         // synchronize the image and point cloud messages
-        img_sub_.subscribe(this, "depth_camera/image_raw");
-        pc_sub_.subscribe(this, "depth_camera/points");
+        img_sub_.subscribe(this, img_topic);
+        pc_sub_.subscribe(this, pc_topic);
 
         sync_ = std::make_shared<message_filters::Synchronizer<exact_policy>>(exact_policy(10), img_sub_, pc_sub_);
         sync_->registerCallback(std::bind(&VisualOdometryNode::imgPcCallback, this, _1, _2));
@@ -56,10 +106,8 @@ public:
         rviz_pc_pub_ = this->create_publisher<visualization_msgs::msg::Marker>(
             "rviz/key_point_markers", 10
         );
-
-        map_to_base_link.header.frame_id = "map";
-        map_to_base_link.child_frame_id = "base_link";
     }
+
 private:
     VisualOdometryCore voc_;
     message_filters::Subscriber<sensor_msgs::msg::Image> img_sub_;
@@ -71,8 +119,12 @@ private:
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
     Eigen::Affine3f depth_camera_to_base_link;
     geometry_msgs::msg::TransformStamped map_to_base_link;
-    bool static_tf_initialized = false;
-    float max_distance_sqr = 10*10;
+    bool static_tf_initialized;
+    std::string map_frame, robot_frame, camera_frame;
+    std::string img_topic, pc_topic;
+    float fx, fy, cx, cy;
+    int img_width, img_height;
+    float max_distance, max_distance_sqr;
 
     void imgPcCallback(const sensor_msgs::msg::Image::ConstSharedPtr& img, const sensor_msgs::msg::PointCloud2::ConstSharedPtr& pc)
     {
@@ -132,7 +184,7 @@ private:
         geometry_msgs::msg::TransformStamped T;
         try 
         {
-            T = tf_buffer_->lookupTransform("base_link", "depth_camera_optical_link", tf2::TimePointZero);
+            T = tf_buffer_->lookupTransform(robot_frame, camera_frame, tf2::TimePointZero);
         }
         catch (tf2::TransformException &ex)
         {
@@ -155,15 +207,15 @@ private:
     }
 
     // visualization stuff
-    bool visualize;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr rviz_img_pub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr rviz_pc_pub_;
-    int marker_id = 0;
+    bool visualize;
+    int32_t marker_id{std::numeric_limits<int32_t>::min()};
 
     void visualizePc(const pcl::PointCloud<pcl::PointXYZ>::Ptr& pc, float pt_size, float r, float g, float b) const
     {
         visualization_msgs::msg::Marker m;
-        m.header.frame_id = "map";
+        m.header.frame_id = map_frame;
         m.header.stamp = this->now();
         m.lifetime = rclcpp::Duration::from_seconds(0);
         m.frame_locked = false;
@@ -202,7 +254,7 @@ private:
     void visualizePc(const std::vector<Eigen::Vector3f>& pc, float pt_size, float r, float g, float b) const
     {
         visualization_msgs::msg::Marker m;
-        m.header.frame_id = "map";
+        m.header.frame_id = map_frame;
         m.header.stamp = this->now();
         m.lifetime = rclcpp::Duration::from_seconds(0);
         m.frame_locked = false;
@@ -232,7 +284,7 @@ private:
         float line_size, float r, float g, float b) const
     {
         visualization_msgs::msg::Marker m;
-        m.header.frame_id = "map";
+        m.header.frame_id = map_frame;
         m.header.stamp = this->now();
         m.lifetime = rclcpp::Duration::from_seconds(0);
         m.frame_locked = false;

@@ -206,12 +206,14 @@ private:
         m.frame_locked = false;
         m.id = id_;
         m.type = visualization_msgs::msg::Marker::ARROW;
-        m.scale.x = 0.06;
-        m.scale.y = 0.02;
-        m.scale.z = 0.02;
+        m.scale.x = 0.07;
+        m.scale.y = 0.04;
+        m.scale.z = 0.04;
         // make sure alpha and color is set or else the points will be invisible
         m.color.a = 1.0;
         m.color.r = 1.0; // estimated pose is red
+        m.color.g = 0.0;
+        m.color.b = 0.0;
         m.action = visualization_msgs::msg::Marker::ADD;
         m.pose.position = est_pose.position;
         m.pose.orientation = est_pose.orientation;
@@ -223,6 +225,8 @@ private:
         m.header.stamp = this->now();
         m.id = id_;
         // make sure alpha and color is set or else the points will be invisible
+        m.color.r = 0.0;
+        m.color.g = 0.0;
         m.color.b = 1.0; // true pose is blue
         m.action = visualization_msgs::msg::Marker::ADD;
         m.pose.position = true_pose.position;

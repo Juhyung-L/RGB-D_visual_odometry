@@ -181,6 +181,5 @@ void VisualOdometryCore::calcualteAllignment(const std::vector<Eigen::Vector3f>&
     Eigen::JacobiSVD<Eigen::Matrix3f> svd(W, Eigen::ComputeFullU | Eigen::ComputeFullV);
     T.linear() = svd.matrixU() * svd.matrixV().transpose(); // calculate rotation matrix
     T.translation() = tgt_mean - T.linear() * src_mean; // calcualte translation vector
-    return;
 }
 } // visual_odometry
