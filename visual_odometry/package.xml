@@ -24,7 +24,6 @@
   <depend>cv_bridge</depend>
   <depend>image_transport</depend>
 
-
   <export>
     <build_type>ament_cmake</build_type>
   </export>
